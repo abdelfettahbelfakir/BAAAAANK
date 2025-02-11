@@ -70,10 +70,12 @@ def transfer(from_account: BankAccount, to_account: BankAccount, amount: float):
     conn.close()
 
 # Supprimer un compte bancaire
-def delete_account(accountid):
+# Suppression d'un compte bancaire
+def delete_account(account_id: int):  # Ici on doit utiliser account_id
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM bank_accounts WHERE id = %s", (accountid,))
+    cursor.execute("DELETE FROM bank_accounts WHERE id = %s", (account_id,))
     conn.commit()
     cursor.close()
     conn.close()
+

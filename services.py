@@ -40,6 +40,6 @@ def delete_account(account_id):
     account = search_account(account_id)
     if account:
         delete_account(account)
-        
+        return account
     else:
         return None
