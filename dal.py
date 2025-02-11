@@ -4,7 +4,7 @@ from models import BankAccount, Operation
 # Connexion à la base de données PostgreSQL
 def connect_db():
     return psycopg2.connect(
-        dbname="your_db", user="your_user", password="your_password", host="localhost", port="5432"
+        dbname="baank_db", user="root", password="", host="localhost", port="8080"
     )
 
 # Ajouter un compte bancaire
@@ -70,12 +70,10 @@ def transfer(from_account: BankAccount, to_account: BankAccount, amount: float):
     conn.close()
 
 # Supprimer un compte bancaire
-# Suppression d'un compte bancaire
-def delete_account(account_id: int):  # Ici on doit utiliser account_id
+def delete_account(accountid):
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM bank_accounts WHERE id = %s", (account_id,))
+    cursor.execute("DELETE FROM bank_accounts WHERE id = %s", (accountid,))
     conn.commit()
     cursor.close()
     conn.close()
-

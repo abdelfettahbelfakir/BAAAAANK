@@ -1,4 +1,4 @@
-from dal import *
+from dal import * # type: ignore
 
 def create_account(username, email, password):
     new_account = BankAccount(username=username, email=email, password=password)
