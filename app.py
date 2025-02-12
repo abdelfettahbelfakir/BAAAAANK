@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import pymysql
+from datetime import datetime
 
 # Créez l'application Flask
 app = Flask(__name__)
@@ -96,6 +97,95 @@ def logout():
     logout_user()  # Déconnecter l'utilisateur
     flash('Vous avez été déconnecté.', 'info')
     return redirect(url_for('login'))  # Rediriger vers la page de connexion
+
+class Operation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Clé étrangère vers User
+    type_operation = db.Column(db.String(50), nullable=False)  # Type d'opération : dépôt, retrait, etc.
+    amount = db.Column(db.Float, nullable=False)  # Montant de l'opération
+    date_operation = db.Column(db.DateTime, default=datetime.utcnow)  # Date de l'opération
+    
+    # Relation entre l'utilisateur et l'opération (un utilisateur peut avoir plusieurs opérations)
+    user = db.relationship('User', backref=db.backref('operations', lazy=True))
+
+    def __repr__(self):
+        return f'<Operation {self.type_operation} of {self.amount} by {self.user.username}>'
+
+@app.route('/deposit', methods=['GET', 'POST'])
+@login_required
+def deposit():
+    if request.method == 'POST':
+        amount = float(request.form['amount'])
+        if amount > 0:
+            # Mettre à jour le solde de l'utilisateur
+            current_user.balance += amount
+
+            # Créer une nouvelle opération
+            operation = Operation(user_id=current_user.id, type_operation='Dépôt', amount=amount)
+            db.session.add(operation)
+            db.session.commit()
+
+            flash(f'Dépôt de {amount} effectué avec succès.', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Le montant doit être supérieur à zéro.', 'danger')
+
+    return render_template('deposit.html')
+@app.route('/withdraw', methods=['GET', 'POST'])
+@login_required
+def withdraw():
+    if request.method == 'POST':
+        amount = float(request.form['amount'])
+        if amount > 0 and current_user.balance >= amount:
+            # Mettre à jour le solde de l'utilisateur
+            current_user.balance -= amount
+
+            # Créer une nouvelle opération
+            operation = Operation(user_id=current_user.id, type_operation='Retrait', amount=amount)
+            db.session.add(operation)
+            db.session.commit()
+
+            flash(f'Retrait de {amount} effectué avec succès.', 'success')
+            return redirect(url_for('dashboard'))
+        elif amount <= 0:
+            flash('Le montant doit être supérieur à zéro.', 'danger')
+        else:
+            flash('Solde insuffisant pour effectuer le retrait.', 'danger')
+
+    return render_template('withdraw.html')
+@app.route('/transfer', methods=['GET', 'POST'])
+@login_required
+def transfer():
+    if request.method == 'POST':
+        to_email = request.form['to_email']
+        amount = float(request.form['amount'])
+
+        # Vérifier si l'utilisateur existe
+        to_user = User.query.filter_by(email=to_email).first()
+
+        if to_user and amount > 0 and current_user.balance >= amount:
+            # Mettre à jour les soldes des utilisateurs
+            current_user.balance -= amount
+            to_user.balance += amount
+
+            # Créer deux nouvelles opérations (une pour l'expéditeur et une pour le destinataire)
+            operation_from = Operation(user_id=current_user.id, type_operation='Transfert', amount=amount)
+            operation_to = Operation(user_id=to_user.id, type_operation='Réception', amount=amount)
+            db.session.add(operation_from)
+            db.session.add(operation_to)
+            db.session.commit()
+
+            flash(f'Transfert de {amount} vers {to_user.username} effectué avec succès.', 'success')
+            return redirect(url_for('dashboard'))
+        elif amount <= 0:
+            flash('Le montant doit être supérieur à zéro.', 'danger')
+        elif not to_user:
+            flash('L\'utilisateur destinataire n\'existe pas.', 'danger')
+        else:
+            flash('Solde insuffisant pour effectuer le transfert.', 'danger')
+
+    return render_template('transfer.html')
+
 
 # Lancer l'application
 if __name__ == '__main__':
